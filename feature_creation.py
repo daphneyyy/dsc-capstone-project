@@ -51,6 +51,16 @@ def linear_model(df):
     X = df[['date_delta']].values
     return LinearRegression().fit(X, y).coef_[0][0]
 
+# Helper method for cumsum_standardize
+def std_amount(x):
+    std_val = x.std()
+    
+    # Check for division by zero
+    if std_val == 0:
+        return 0  
+    return (x - x.mean()) / std_val
+
+
 # Calculate cumulative sum of standardized amount
 def cumsum_standardize(inflows, outflows):
     # Merge inflows and outflows
@@ -58,7 +68,7 @@ def cumsum_standardize(inflows, outflows):
     all_transactions = pd.concat([inflows,outflows])
 
     # Standardize amount
-    amount_standardized = all_transactions.groupby(['prism_consumer_id','category_description'])['amount'].transform(lambda x: (x - x.mean()) / x.std())
+    amount_standardized = all_transactions.groupby(['prism_consumer_id','category_description'])['amount'].transform(std_amount)
     amount_standardized.fillna(0, inplace=True)
     all_transactions['amount_standardized'] = amount_standardized
 
