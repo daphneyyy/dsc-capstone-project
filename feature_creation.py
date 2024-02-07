@@ -67,16 +67,16 @@ def cumsum_standardize(inflows, outflows):
     outflows['amount'] *= -1
     all_transactions = pd.concat([inflows,outflows])
 
-    # Standardize amount
-    amount_standardized = all_transactions.groupby(['prism_consumer_id','category_description'])['amount'].transform(std_amount)
-    amount_standardized.fillna(0, inplace=True)
-    all_transactions['amount_standardized'] = amount_standardized
-
     # Extract month from date
     all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
 
+    # Standardize amount
+    transactions_by_month = all_transactions.groupby(['prism_consumer_id','acct_type','category_description','month'])['amount'].sum().reset_index()
+    transactions_by_month['amount_standardized'] = transactions_by_month.groupby(['prism_consumer_id','acct_type','category_description'])['amount'].transform(std_amount)
+    transactions_by_month.fillna(0, inplace=True)
+
     # Calculate cumulative sum of standardized amount
-    transactions_std = all_transactions.groupby(['prism_consumer_id', 'acct_type', 'month'])[['amount_standardized']].sum().reset_index()
+    transactions_std = transactions_by_month.groupby(['prism_consumer_id', 'acct_type', 'month'])[['amount_standardized']].sum().reset_index()
     transactions_std['cumulative_sum'] = transactions_std.groupby(['prism_consumer_id', 'acct_type'])['amount_standardized'].cumsum()
 
     # Calculate date delta
