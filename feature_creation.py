@@ -1,5 +1,6 @@
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+import numpy as np
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
 # ignore warnings
 import warnings
@@ -22,7 +23,7 @@ def load_data():
     
     return cons, acct, inflows, outflows
 
-def percent_spent(inflows, outflows):
+def important_cat(inflows, outflows, cons):
     # Total inflow amount by consumer and account type
     inflows_acc_amount = inflows.groupby(['prism_consumer_id', 'acct_type'])['amount'].sum().reset_index()
     
@@ -35,7 +36,17 @@ def percent_spent(inflows, outflows):
     cat_percentage = percentage_df.pivot_table(index='prism_consumer_id', columns='category_description', values='percentage', aggfunc='first', fill_value=0)
     cat_percentage.reset_index(inplace=True)
     
-    return cat_percentage
+    X = cat_percentage.drop(columns=['prism_consumer_id'])
+    y = (cons.sort_values(by='prism_consumer_id').reset_index(drop=True))['FPF_TARGET']
+    coefficients_perc = LogisticRegression().fit(X, y).coef_[0]
+
+    importance = np.abs(coefficients_perc)
+    df_importance = pd.DataFrame({feature: importance_value for feature, importance_value in zip(X.columns, importance)}, index=[0]).transpose()
+    df_importance.sort_values(0, ascending=False, inplace=True)
+    df_importance.columns = ['importance']
+    important_category = df_importance[df_importance['importance'] > 0.1].index.to_list()
+    
+    return cat_percentage, important_category
 
 def account_count(inflows):
     # Count of accounts by type for each consumer
@@ -99,7 +110,8 @@ def create_features():
     cons, acct, inflows, outflows = load_data()
     
     # Calculate percentage of spending by category for each consumer
-    cat_percentage = percent_spent(inflows, outflows)
+    # Also gives the important outflow categories
+    cat_percentage, important_categories = important_cat(inflows, outflows, cons)
 
     # Count of accounts by type for each consumer
     acct_count_flat = account_count(inflows)
