@@ -31,7 +31,9 @@ def important_cat(inflows, outflows, cons):
     outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'acct_type', 'category_description'])['amount'].sum().reset_index()
     
     # Calculate percentage of spending by category for each consumer
-    percentage_df = pd.merge(inflows_acc_amount, outflows_cat_amount, on=['prism_consumer_id', 'acct_type'], suffixes=('_inflows', '_outflows'))
+    percentage_df = pd.merge(inflows_acc_amount, outflows_cat_amount, on=['prism_consumer_id', 'acct_type'], suffixes=('_inflows', '_outflows'), how='left')
+    percentage_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
+    percentage_df['amount_outflows'].fillna(0, inplace=True)
     percentage_df['percentage'] = percentage_df['amount_outflows'] / percentage_df['amount_inflows']
     cat_percentage = percentage_df.pivot_table(index='prism_consumer_id', columns='category_description', values='percentage', aggfunc='first', fill_value=0)
     cat_percentage.reset_index(inplace=True)
@@ -46,7 +48,7 @@ def important_cat(inflows, outflows, cons):
     df_importance.columns = ['importance']
     important_category = df_importance[df_importance['importance'] > 0.1].index.to_list()
     
-    return cat_percentage, important_category
+    return cat_percentage[['prism_consumer_id'] + important_category], important_category
 
 def account_count(inflows):
     # Count of accounts by type for each consumer
@@ -82,8 +84,8 @@ def cumsum_standardize(inflows, outflows):
     all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
 
     # Standardize amount
-    transactions_by_month = all_transactions.groupby(['prism_consumer_id','acct_type','category_description','month'])['amount'].sum().reset_index()
-    transactions_by_month['amount_standardized'] = transactions_by_month.groupby(['prism_consumer_id','acct_type','category_description'])['amount'].transform(std_amount)
+    transactions_by_month = all_transactions.groupby(['prism_consumer_id','acct_type','month'])['amount'].sum().reset_index()
+    transactions_by_month['amount_standardized'] = transactions_by_month.groupby(['prism_consumer_id','acct_type'])['amount'].transform(std_amount)
     transactions_by_month.fillna(0, inplace=True)
 
     # Calculate cumulative sum of standardized amount
