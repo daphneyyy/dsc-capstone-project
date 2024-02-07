@@ -6,6 +6,6 @@ warnings.filterwarnings("ignore")
 
 def income_estimate(inflow, outflow, cons):
     inflow_clean, determined_transactions, undetermined_transactions = process_data(inflow)
-    run_model(inflow_clean, determined_transactions, undetermined_transactions)
+    complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
     
     return None
