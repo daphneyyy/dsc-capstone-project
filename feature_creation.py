@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression, LogisticRegression
+from income_estimation import income_estimate
 
 # ignore warnings
 import warnings
@@ -23,7 +24,7 @@ def load_data():
     
     return cons, acct, inflows, outflows
 
-def important_cat(inflows, outflows, cons):
+def cat_percent(inflows, outflows, cons):
     # Total inflow amount by consumer and account type
     inflows_acc_amount = inflows.groupby(['prism_consumer_id', 'acct_type'])['amount'].sum().reset_index()
     
@@ -113,7 +114,7 @@ def create_features():
     
     # Calculate percentage of spending by category for each consumer
     # Also gives the important outflow categories
-    cat_percentage, important_categories = important_cat(inflows, outflows, cons)
+    cat_percentage, important_categories = cat_percent(inflows, outflows, cons)
 
     # Count of accounts by type for each consumer
     acct_count_flat = account_count(inflows)
@@ -121,6 +122,8 @@ def create_features():
     # Standardize and calculate cumulative sum of inflows and outflows
     coefficients_std_flat = cumsum_standardize(inflows, outflows)
 
+    income_estimate_df = income_estimate(inflows, outflows, cons)
+    
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')
     cnt_and_perc = cnt_and_perc.fillna(0)
