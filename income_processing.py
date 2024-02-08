@@ -15,7 +15,7 @@ Parameter:
 '''
 def remove_digits(df):
     df['memo'] = df['memo'].str.lower().apply(lambda x: re.sub(r'\b(\w*\d+\w*)\b', 'X', x))
-    df['category'] = df['category'].str.lower()
+    df['category_description'] = df['category_description'].str.lower()
     return df
 
 '''
@@ -24,8 +24,8 @@ Parameter:
  df: standardized inflow dataframe
 '''
 def determined_income(df):
-    paycheck_inflow = df[df['category'].isin(['paycheck', 'paycheck_placeholder'])]
-    paycheck_inflow['category'] = paycheck_inflow['category'].str.lower()
+    paycheck_inflow = df[df['category_description'].isin(['paycheck', 'paycheck_placeholder'])]
+    paycheck_inflow['category_description'] = paycheck_inflow['category_description'].str.lower()
     ##age not required for this dataframe, dummy var placed instead
     paycheck_inflow['age'] = -1
     return paycheck_inflow
@@ -36,7 +36,7 @@ Parameter:
  df: standardized inflow dataframe 
 '''
 def undetermined_income(df):
-    rel_inflow = df[df['category'].isin(['deposit', 'external_transfer', 'investment_income', 'unemployment_benefits', 'miscellaneous'])]
+    rel_inflow = df[df['category_description'].isin(['deposit', 'external_transfer', 'investment_income', 'unemployment_benefits', 'miscellaneous'])]
     return rel_inflow
 '''
 Helper Function to find the transactions for a given user for a given category
@@ -46,7 +46,7 @@ Parameters:
   df: undetermined transactions dataframe
 '''
 def user_transactions_by_category(user, category, df):
-    trans = df[(df['prism_consumer_id'] == user) & (df['category'] == category)].sort_values(by='posted_date')
+    trans = df[(df['prism_consumer_id'] == user) & (df['category_description'] == category)].sort_values(by='posted_date')
     return trans
 
 '''
@@ -88,7 +88,7 @@ def populate_date_dictionary(df):
 # date_dictionary: dictionary with earliest transaction for a given category already populated
 '''
 def age(transac, date_dictionary):
-    cat = transac['category']
+    cat = transac['category_description']
     first_date = date_dictionary[transac['prism_consumer_id']][cat]
     curr = transac['posted_date']
     return (curr - first_date).days

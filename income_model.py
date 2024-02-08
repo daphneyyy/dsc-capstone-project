@@ -124,7 +124,7 @@ def determine_income(userID, orig_df):
     #groupby amount 
     #check recurrence 
     for cat in ['deposit', 'external_transfer', 'investment_income', 'unemployment_benefits', 'miscellaneous']:
-        user_cat_trans = user_trans[user_trans['category'] == cat] 
+        user_cat_trans = user_trans[user_trans['category_description'] == cat] 
         repeat_amount = user_cat_trans.groupby("amount")[['age']].count()
         amount_list = repeat_amount[repeat_amount['age']>1].index
         
@@ -236,7 +236,7 @@ def run_model(inflow,  determined_transactions, undetermined_transactions):
     model_trained_undetermined_transactions= model_by_user(with_flag_df)
     income = complete_income_estimate(determined_transactions, model_trained_undetermined_transactions)
     complete_income = all_users_income(inflow, income)
-    # complete_income.to_csv('income_estimates.csv')
+    complete_income.to_csv('income_estimates.csv')
     # results = estimate_yearly_income(inflow, complete_income)
     # create_figure(complete_income, 'Estimated Income Across Transactions')
     # create_figure(results, 'Estimated Annual Income')
