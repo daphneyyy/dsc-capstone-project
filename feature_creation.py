@@ -28,13 +28,13 @@ def load_data():
 
 def cat_percent(inflows, outflows, cons):
     # Total inflow amount by consumer and account type
-    inflows_acc_amount = inflows.groupby(['prism_consumer_id', 'acct_type'])['amount'].sum().reset_index()
+    inflows_acc_amount = inflows.groupby(['prism_consumer_id'])['amount'].sum().reset_index()
     
     # Total outflow amount by consumer, account type, and category
-    outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'acct_type', 'category_description'])['amount'].sum().reset_index()
+    outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'category_description'])['amount'].sum().reset_index()
     
     # Calculate percentage of spending by category for each consumer
-    percentage_df = pd.merge(inflows_acc_amount, outflows_cat_amount, on=['prism_consumer_id', 'acct_type'], suffixes=('_inflows', '_outflows'), how='left')
+    percentage_df = pd.merge(inflows_acc_amount, outflows_cat_amount, on=['prism_consumer_id'], suffixes=('_inflows', '_outflows'), how='left')
     percentage_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
     percentage_df['amount_outflows'].fillna(0, inplace=True)
     percentage_df['percentage'] = percentage_df['amount_outflows'] / percentage_df['amount_inflows']
