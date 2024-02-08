@@ -54,36 +54,6 @@ def cat_percent(inflows, outflows, cons):
     return cat_percentage[['prism_consumer_id'] + important_category], important_category
 
 
-def cat_percent_income(incomes, outflows, cons):
-        
-    # Total outflow amount by consumer, account type, and category
-    outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'category_description'])['amount'].sum().reset_index()
-    
-    # Calculate percentage of spending by category for each consumer
-    percentage_df = pd.merge(incomes, outflows_cat_amount, on=['prism_consumer_id'], suffixes=('_income', '_outflows'), how='left')
-    percentage_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
-    percentage_df['amount_outflows'].fillna(0, inplace=True)
-    percentage_df['percentage'] = percentage_df['amount_outflows'] / percentage_df['amount_income']
-
-
-    cat_percentage = percentage_df.pivot(index='prism_consumer_id', columns='category_description', values='percentage').add_suffix('_income_percent')
-    cat_percentage.reset_index(inplace=True)
-    cat_percentage.fillna(0, inplace=True)
-    cat_percentage.replace([np.inf], 0, inplace=True)
-
-    X = cat_percentage.drop(columns=['prism_consumer_id'])
-    y = (cons.sort_values(by='prism_consumer_id').reset_index(drop=True))['FPF_TARGET']
-    coefficients_perc = LogisticRegression().fit(X, y).coef_[0]
-
-    importance = np.abs(coefficients_perc)
-    df_importance = pd.DataFrame({feature: importance_value for feature, importance_value in zip(X.columns, importance)}, index=[0]).transpose()
-    df_importance.sort_values(0, ascending=False, inplace=True)
-    df_importance.columns = ['importance']
-    important_category = df_importance[df_importance['importance'] > 0.1].index.to_list()
-    
-    return cat_percentage[['prism_consumer_id'] + important_category], important_category
-
-
 def account_count(inflows):
     # Count of accounts by type for each consumer
     acct_count = inflows.groupby(['prism_consumer_id', 'acct_type', 'prism_account_id']).size().groupby(['prism_consumer_id', 'acct_type']).count().reset_index(name='count')
@@ -155,17 +125,15 @@ def create_features():
     # Standardize and calculate cumulative sum of inflows and outflows
     coefficients_std_flat = cumsum_standardize(inflows, outflows)
 
-    income_estimate = income_estimate(inflows, outflows, cons)
-    income_percentages = cat_percent_income(income_estimate, outflows, cons)
+    income_percentage = income_estimate(inflows, outflows, cons)
 
-    
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')
     cnt_and_perc = cnt_and_perc.fillna(0)
     cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on=['prism_consumer_id'], how='outer', suffixes=('_cnt', '_coeff'))
     
     ##new income percentages
-    cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, income_percentages, on = 'prism_consumer_id', how = 'outer')
+    cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, income_percentage, on = 'prism_consumer_id', how = 'outer')
 
     # Get target variable and drop unnecessary columns
     final_df = pd.merge(cnt_both_perc_coeff, cons, on=['prism_consumer_id'])
