@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from income_estimation import income_estimate
+from income_features import inflow_features
 
 # ignore warnings
 import warnings
@@ -78,8 +79,12 @@ def std_amount(x):
     return (x - x.mean()) / std_val
 
 def balance_cumsum_std(inflow, outflow, acct):
-    outflow['amount'] *= -1
-    all_transactions = pd.concat([inflow,outflow])
+    # copy dataframes
+    outflows_negate = outflow.copy()
+    outflows_negate['amount'] *= -1
+    
+    # Merge inflows and outflows
+    all_transactions = pd.concat([inflow,outflows_negate])
 
     # Extract month from date
     all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
@@ -133,9 +138,12 @@ def balance_cumsum_std(inflow, outflow, acct):
 
 # Calculate cumulative sum of standardized amount
 def balance_diff_std(inflows, outflows):
+    # copy dataframes
+    outflows_negate = outflows.copy()
+    outflows_negate['amount'] *= -1
+    
     # Merge inflows and outflows
-    outflows['amount'] *= -1
-    all_transactions = pd.concat([inflows,outflows])
+    all_transactions = pd.concat([inflows,outflows_negate])
 
     # Extract month from date
     all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
@@ -175,23 +183,26 @@ def create_features():
     coefficients_std_flat = balance_diff_std(inflows, outflows)
 
     income, income_percentage = income_estimate(inflows, outflows, cons)
+    
+    inf_features = inflow_features(inflows, outflows, income)
+    
+    #new balance funcs
+    balance_std_coeff = balance_cumsum_std(inflows,outflows,acct)
 
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')
     cnt_and_perc = cnt_and_perc.fillna(0)
-    cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on=['prism_consumer_id'], how='outer', suffixes=('_cnt', '_coeff'))
+    cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on='prism_consumer_id', how='outer', suffixes=('_cnt', '_coeff'))
     
     ##new income percentages
     cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, income_percentage, on = 'prism_consumer_id', how = 'outer')
 
-    #new balance funcs
-    balance_std_coeff = balance_cumsum_std(inflows,outflows,acct)
-
     cnt_percs_coeff_balance = pd.merge(cnt_both_perc_coeff, balance_std_coeff, on = 'prism_consumer_id', how = 'outer')
 
+    all_features = pd.merge(cnt_percs_coeff_balance, inf_features, on='prism_consumer_id', how='outer')
 
     # Get target variable and drop unnecessary columns
-    final_df = pd.merge(cnt_percs_coeff_balance, cons, on=['prism_consumer_id'])
+    final_df = pd.merge(all_features, cons, on='prism_consumer_id')
     final_df.drop(columns=['APPROVED','evaluation_date'], inplace=True)
     final_df['FPF_TARGET'] = final_df['FPF_TARGET'].astype(int)
 
