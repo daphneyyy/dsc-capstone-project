@@ -174,7 +174,7 @@ def create_features():
     # Standardize and calculate cumulative sum of inflows and outflows
     coefficients_std_flat = balance_diff_std(inflows, outflows)
 
-    income_percentage = income_estimate(inflows, outflows, cons)
+    income, income_percentage = income_estimate(inflows, outflows, cons)
 
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')

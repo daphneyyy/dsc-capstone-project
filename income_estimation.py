@@ -42,4 +42,4 @@ def income_estimate(inflow, outflow, cons):
     complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
     income_percentages = cat_percent_income(complete_income, outflow, cons)
     
-    return  income_percentages
+    return  complete_income, income_percentages
