@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
 import statistics as stat
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 '''
 #Function calculates average recurrence of transactions metric
@@ -211,19 +210,19 @@ def estimate_yearly_income(df, income_estimate):
     return annual_income
 
 
-'''
-Function creates figures 
-Parameter:
-    estimated_incomes: series of estimated incomes for users
-'''
-def create_figure(estimated_incomes, title):
+# '''
+# Function creates figures 
+# Parameter:
+#     estimated_incomes: series of estimated incomes for users
+# '''
+# def create_figure(estimated_incomes, title):
 
-    plt.hist(estimated_incomes, bins='auto', alpha=0.7, color='blue', edgecolor='black')
+#     plt.hist(estimated_incomes, bins='auto', alpha=0.7, color='blue', edgecolor='black')
 
-    plt.xlabel('Estimated Income')
-    plt.ylabel('Frequency')
-    plt.title(title)
-    plt.savefig(f"{title}.png")
+#     plt.xlabel('Estimated Income')
+#     plt.ylabel('Frequency')
+#     plt.title(title)
+#     plt.savefig(f"{title}.png")
 
 
 #Run entire model processing
@@ -237,9 +236,5 @@ def run_model(inflow,  determined_transactions, undetermined_transactions):
     income = complete_income_estimate(determined_transactions, model_trained_undetermined_transactions)
     complete_income = all_users_income(inflow, income)
     # complete_income.to_csv('income_estimates.csv')
-    # results = estimate_yearly_income(inflow, complete_income)
-    # create_figure(complete_income, 'Estimated Income Across Transactions')
-    # create_figure(results, 'Estimated Annual Income')
-    # results.to_csv('annual_income_estimates.csv')
 
     return complete_income

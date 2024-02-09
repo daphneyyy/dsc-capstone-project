@@ -1,11 +1,11 @@
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
 from income_processing import process_data
 from income_model import run_model
 
 import warnings
 warnings.filterwarnings("ignore")
-import pandas as pd
-import numpy as np
-from sklearn.linear_model import LinearRegression, LogisticRegression
 
 def cat_percent_income(incomes, outflows, cons):
         

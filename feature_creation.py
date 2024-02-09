@@ -52,7 +52,7 @@ def cat_percent(inflows, outflows, cons):
     df_importance.columns = ['importance']
     important_category = df_importance[df_importance['importance'] > 0.1].index.to_list()
     
-    return cat_percentage[['prism_consumer_id'] + important_category], important_category
+    return cat_percentage[['prism_consumer_id'] + important_category]
 
 
 def account_count(inflows):
@@ -173,8 +173,7 @@ def create_features():
     cons, acct, inflows, outflows = load_data()
     
     # Calculate percentage of spending by category for each consumer
-    # Also gives the important outflow categories
-    cat_percentage, important_categories = cat_percent(inflows, outflows, cons)
+    cat_percentage = cat_percent(inflows, outflows, cons)
 
     # Count of accounts by type for each consumer
     acct_count_flat = account_count(inflows)

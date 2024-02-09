@@ -1,10 +1,4 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
 import re
-import scipy.stats as scistat
-from datetime import datetime
-import statistics as stat
 
 '''
 Function changes digits to X's to standardize memos that would otherwise hold the same information
