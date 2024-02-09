@@ -236,7 +236,7 @@ def run_model(inflow,  determined_transactions, undetermined_transactions):
     model_trained_undetermined_transactions= model_by_user(with_flag_df)
     income = complete_income_estimate(determined_transactions, model_trained_undetermined_transactions)
     complete_income = all_users_income(inflow, income)
-    complete_income.to_csv('income_estimates.csv')
+    # complete_income.to_csv('income_estimates.csv')
     # results = estimate_yearly_income(inflow, complete_income)
     # create_figure(complete_income, 'Estimated Income Across Transactions')
     # create_figure(results, 'Estimated Annual Income')

@@ -5,7 +5,7 @@ def main():
     # Create the features
     print("====== Creating features. ======")
     X, y = create_features()
-    print("Number of features: ", X.shape[1])
+    print("Number of features: ", X.shape[1] - 1)
     print("====== Features created. ======")
     # Train the model
     # train_model()

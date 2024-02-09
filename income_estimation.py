@@ -34,7 +34,7 @@ def cat_percent_income(incomes, outflows, cons):
     df_importance.columns = ['importance']
     important_category = df_importance[df_importance['importance'] > 0.1].index.to_list()
     
-    return cat_percentage[['prism_consumer_id'] + important_category], important_category
+    return cat_percentage[['prism_consumer_id'] + important_category]
 
 
 def income_estimate(inflow, outflow, cons):

@@ -110,7 +110,8 @@ Parameters:
   df: initial dataframe of transaction data
 '''
 def process_data(df):
-    standardized_df = remove_digits(df)
+    df_copy = df.copy()
+    standardized_df = remove_digits(df_copy)
     paycheck_trans = determined_income(standardized_df)
     undetermined_trans = undetermined_income(standardized_df)
     earliestByUserByCategory = populate_date_dictionary(undetermined_trans)
