@@ -64,7 +64,7 @@ def account_count(inflows):
 
 # Helper method for cumsum_standardize
 def linear_model(df):
-    y = df[['cumulative_sum']].values
+    y = df[['amount_standardized']].values
     X = df[['date_delta']].values
     return LinearRegression().fit(X, y).coef_[0][0]
 
@@ -77,9 +77,62 @@ def std_amount(x):
         return 0  
     return (x - x.mean()) / std_val
 
+def balance_cumsum_std(inflow, outflow, acct):
+    outflow['amount'] *= -1
+    all_transactions = pd.concat([inflow,outflow])
+
+    # Extract month from date
+    all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
+    
+    #cumulative sum by month and account ID
+    def cumulative_sum(all_transactions):      
+        transactions = all_transactions.groupby(['prism_consumer_id', 'prism_account_id', 'month'])[['amount']].sum().reset_index()
+        transactions['cumulative_sum'] = transactions.groupby(['prism_consumer_id', 'prism_account_id'])['amount'].cumsum()
+        return transactions
+    
+    transactions = cumulative_sum(all_transactions)
+    
+    #final balance from transactions only
+    max_months = transactions.groupby(['prism_consumer_id', 'prism_account_id'])['month'].max()
+    calculated_balance = transactions[transactions.apply(lambda row: (row['prism_consumer_id'], row['prism_account_id']) in max_months.index and row['month'] == max_months.loc[(row['prism_consumer_id'], row['prism_account_id'])], axis=1)]
+    
+    #starting accounts balance
+    modded_balance = pd.merge(calculated_balance, acct, on = ['prism_consumer_id', 'prism_account_id'] )
+    modded_balance['mod_balance'] = modded_balance['balance'] - modded_balance['cumulative_sum']
+    
+    modded_balance = modded_balance[['prism_consumer_id', 'prism_account_id', 'balance_date', 'mod_balance']]
+
+    #recalculate cumulative sum with starting balance
+    min_months = transactions.groupby(['prism_consumer_id', 'prism_account_id'])['month'].min().reset_index()
+    modded_balance = pd.merge(modded_balance.drop(columns=['balance_date']), min_months, on = ['prism_consumer_id', 'prism_account_id'])
+    temp_transactions = pd.concat([modded_balance, all_transactions])
+    complete_balance = cumulative_sum(temp_transactions)
+    
+    acct_types = acct.set_index('prism_account_id')['account_type'].to_dict()
+    complete_balance['acct_type'] = complete_balance['prism_account_id'].apply(lambda x: acct_types[x])
+    
+        #standardize balances by acct_type per user
+    complete_balance['amount_standardized'] = complete_balance.groupby(['prism_consumer_id','acct_type'])['cumulative_sum'].transform(std_amount)
+    complete_balance.fillna(0, inplace=True)
+    std_balance = complete_balance[['prism_consumer_id', 'prism_account_id','month', 'acct_type','cumulative_sum', 'amount_standardized']]
+
+    # Calculate date delta
+    cumsum_std = std_balance#.drop(columns=['cumulative_sum'])
+    cumsum_std['date'] = pd.to_datetime(cumsum_std['month'])
+    cumsum_std['date_delta'] = (cumsum_std['date'] - cumsum_std.groupby(
+        ['prism_consumer_id', 'acct_type']
+        )['date'].transform('min')).dt.days
+
+    # Calculate linear model coefficients of cumulative sum over time for each consumer and account type
+    coefficients_std = cumsum_std.groupby(['prism_consumer_id','acct_type']).apply(linear_model).to_frame().reset_index()
+    coefficients_std.columns = ['prism_consumer_id','acct_type','coefficient']
+    coefficients_std_flat = coefficients_std.pivot_table(index='prism_consumer_id', columns='acct_type', values='coefficient', aggfunc='first', fill_value=0)
+    coefficients_std_flat.reset_index(inplace=True)
+    
+    return coefficients_std_flat
 
 # Calculate cumulative sum of standardized amount
-def cumsum_standardize(inflows, outflows):
+def balance_diff_std(inflows, outflows):
     # Merge inflows and outflows
     outflows['amount'] *= -1
     all_transactions = pd.concat([inflows,outflows])
@@ -92,21 +145,17 @@ def cumsum_standardize(inflows, outflows):
     transactions_by_month['amount_standardized'] = transactions_by_month.groupby(['prism_consumer_id','acct_type'])['amount'].transform(std_amount)
     transactions_by_month.fillna(0, inplace=True)
 
-    # Calculate cumulative sum of standardized amount
-    transactions_std = transactions_by_month.groupby(['prism_consumer_id', 'acct_type', 'month'])[['amount_standardized']].sum().reset_index()
-    transactions_std['cumulative_sum'] = transactions_std.groupby(['prism_consumer_id', 'acct_type'])['amount_standardized'].cumsum()
-
     # Calculate date delta
-    cumsum_std = transactions_std.drop(columns=['amount_standardized'])
-    cumsum_std['date'] = pd.to_datetime(cumsum_std['month'])
-    cumsum_std['date_delta'] = (cumsum_std['date'] - cumsum_std.groupby(
+    transactions_by_month['date'] = pd.to_datetime(transactions_by_month['month'])
+    transactions_by_month['date_delta'] = (transactions_by_month['date'] - transactions_by_month.groupby(
         ['prism_consumer_id', 'acct_type']
         )['date'].transform('min')).dt.days
 
     # Calculate linear model coefficients of cumulative sum over time for each consumer and account type
-    coefficients_std = cumsum_std.groupby(['prism_consumer_id','acct_type']).apply(linear_model).to_frame().reset_index()
+
+    coefficients_std = transactions_by_month.groupby(['prism_consumer_id','acct_type']).apply(linear_model).to_frame().reset_index()
     coefficients_std.columns = ['prism_consumer_id','acct_type','coefficient']
-    coefficients_std_flat = coefficients_std.pivot_table(index='prism_consumer_id', columns='acct_type', values='coefficient', aggfunc='first', fill_value=0)
+    coefficients_std_flat = coefficients_std.pivot_table(index='prism_consumer_id', columns='acct_type', values='coefficient', fill_value=0)
     coefficients_std_flat.reset_index(inplace=True)
     
     return coefficients_std_flat
@@ -123,7 +172,7 @@ def create_features():
     acct_count_flat = account_count(inflows)
 
     # Standardize and calculate cumulative sum of inflows and outflows
-    coefficients_std_flat = cumsum_standardize(inflows, outflows)
+    coefficients_std_flat = balance_diff_std(inflows, outflows)
 
     income_percentage = income_estimate(inflows, outflows, cons)
 
@@ -135,8 +184,14 @@ def create_features():
     ##new income percentages
     cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, income_percentage, on = 'prism_consumer_id', how = 'outer')
 
+    #new balance funcs
+    balance_std_coeff = balance_cumsum_std(inflows,outflows,acct)
+
+    cnt_percs_coeff_balance = pd.merge(cnt_both_perc_coeff, balance_std_coeff, on = 'prism_consumer_id', how = 'outer')
+
+
     # Get target variable and drop unnecessary columns
-    final_df = pd.merge(cnt_both_perc_coeff, cons, on=['prism_consumer_id'])
+    final_df = pd.merge(cnt_percs_coeff_balance, cons, on=['prism_consumer_id'])
     final_df.drop(columns=['APPROVED','evaluation_date'], inplace=True)
     final_df['FPF_TARGET'] = final_df['FPF_TARGET'].astype(int)
 
