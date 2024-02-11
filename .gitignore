@@ -1,4 +1,4 @@
 *.pqt
 *.DS_Store
 /__pycache__
-*.csv
+/IncomeEstimation/__pycache__

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from income_estimation import income_estimate
+from IncomeEstimation.income_estimation import income_estimate
 from income_features import inflow_features
 
 # ignore warnings
@@ -193,7 +193,6 @@ def create_features():
     cnt_and_perc = cnt_and_perc.fillna(0)
     cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on='prism_consumer_id', how='outer', suffixes=('_cnt', '_coeff'))
     
-    ##new income percentages
     cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, income_percentage, on = 'prism_consumer_id', how = 'outer')
 
     cnt_percs_coeff_balance = pd.merge(cnt_both_perc_coeff, balance_std_coeff, on = 'prism_consumer_id', how = 'outer')

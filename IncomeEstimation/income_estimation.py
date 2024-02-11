@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from income_processing import process_data
-from income_model import run_model
+from IncomeEstimation.income_processing import process_data
+from IncomeEstimation.income_model import run_model
 
 import warnings
 warnings.filterwarnings("ignore")
