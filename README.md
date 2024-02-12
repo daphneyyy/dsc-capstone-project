@@ -2,11 +2,9 @@
 
 ## Summary
 
-This project look into different ways, specifically using transaction categories,
+This project looks into different ways, specifically using transaction categories,
 income estimates, and trends in a consumer’s balance over time to improve the accuracy
-of predicting the likelihood of individuals defaulting on their payments. This project aims
-to bring a tangible improvement to the reliability and efficiency of our current financial
-system.
+of predicting the likelihood of individuals defaulting on their payments. We will run different prediction models, including SVM and logistic regression, on the features mentioned above and select the most feasible model. This project aims to bring a tangible improvement to the reliability and efficiency of our current financial system.
 
 ## Set up Environment: 
 ### 1. Install [Anaconda](https://www.anaconda.com/products/individual)
