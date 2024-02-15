@@ -4,25 +4,33 @@ from sklearn.linear_model import LogisticRegression
 from IncomeEstimation.income_processing import process_data
 from IncomeEstimation.income_model import run_model
 
+
 import warnings
 warnings.filterwarnings("ignore")
 
-def cat_percent_income(incomes, outflows, cons):
+def cat_percent_income(incomes,inflow, outflows, cons):
         
     # Total outflow amount by consumer, account type, and category
     outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'category_description'])['amount'].sum().reset_index()
+  
+
+    #income or inflow
+    inflows_consumer_amount = inflow.groupby(["prism_consumer_id"])['amount'].sum().reset_index()
+    income_final = pd.merge(incomes,inflows_consumer_amount,on=["prism_consumer_id"], suffixes=('_income', '_inflow'))
+    income_final.loc[income_final['amount_income'] == 0, 'amount_income'] = income_final.loc[income_final['amount_income'] == 0, 'amount_inflow']
+    income_final.drop('amount_inflow',axis=1,inplace = True)
+    
+
     
     # Calculate percentage of spending by category for each consumer
-    percentage_df = pd.merge(incomes, outflows_cat_amount, on=['prism_consumer_id'], suffixes=('_income', '_outflows'), how='left')
+    percentage_df = pd.merge(income_final, outflows_cat_amount, on=['prism_consumer_id'], suffixes=('_income', '_outflows'), how='left')
     percentage_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
-    percentage_df['amount_outflows'].fillna(0, inplace=True)
-    percentage_df['percentage'] = percentage_df['amount_outflows'] / percentage_df['amount_income']
+    percentage_df['percentage'] = percentage_df['amount'] / percentage_df['amount_income']
 
 
     cat_percentage = percentage_df.pivot(index='prism_consumer_id', columns='category_description', values='percentage').add_suffix('_income_percent')
     cat_percentage.reset_index(inplace=True)
     cat_percentage.fillna(0, inplace=True)
-    cat_percentage.replace([np.inf], 0, inplace=True)
 
     X = cat_percentage.drop(columns=['prism_consumer_id'])
     y = (cons.sort_values(by='prism_consumer_id').reset_index(drop=True))['FPF_TARGET']
@@ -39,7 +47,8 @@ def cat_percent_income(incomes, outflows, cons):
 
 def income_estimate(inflow, outflow, cons):
     inflow_clean, determined_transactions, undetermined_transactions = process_data(inflow)
-    complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
-    income_percentages = cat_percent_income(complete_income, outflow, cons)
+    #complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
+    complete_income = pd.read_csv('IncomeEstimation/income_estimates.csv')
+    income_percentages = cat_percent_income(complete_income, inflow, outflow, cons)
     
     return  complete_income, income_percentages
