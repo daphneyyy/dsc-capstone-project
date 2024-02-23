@@ -1,4 +1,4 @@
-# DSC180-Q2-Checkpoint
+# DSC Capstone Project Code
 
 ## Summary
 
