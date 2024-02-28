@@ -134,9 +134,85 @@ def balance_cumsum_std(inflow, outflow, acct):
     coefficients_std_flat = coefficients_std.pivot_table(index='prism_consumer_id', columns='acct_type', values='coefficient', aggfunc='first', fill_value=0)
     coefficients_std_flat.reset_index(inplace=True)
     
-    return coefficients_std_flat
+    return std_balance, coefficients_std_flat
 
-# Calculate cumulative sum of standardized amount
+def moving_avg(std_balance):
+    
+    
+    #function to define month span we can user for most users
+    def explore_time_span(transactions):
+        grouped_data = transactions.groupby(['prism_consumer_id', 'acct_type'])
+
+        # Define a function to calculate the span of months
+        def calculate_month_span(group):
+            min_date = group['posted_date'].min()  
+            max_date = group['posted_date'].max()  
+
+            # Calculate the span of months
+            span_months = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1
+
+            return span_months
+
+        # Apply the function to each group and get the span of months
+        month_span = grouped_data.apply(calculate_month_span)
+
+        print(month_span.describe())
+    
+    ###moving average code
+    def calculate_sma(data, window):
+        return data.rolling(window=window, min_periods=1).mean()
+
+    def calculate_ema(data, span):
+        return data.ewm(span=span, adjust=False).mean()
+
+        # Calculate SMA and EMA
+    sma_window = 2  # Define SMA window size
+    ema_span = 2    # Define EMA span
+
+        # Calculate SMA
+    std_balance['sma'] = std_balance.groupby(['prism_consumer_id', 'acct_type'])['amount_standardized'].transform(lambda x: calculate_sma(x, sma_window))
+    # Calculate EMA
+    std_balance['ema'] = std_balance.groupby(['prism_consumer_id', 'acct_type'])['amount_standardized'].transform(lambda x: calculate_ema(x, ema_span))
+
+    moving_averages = std_balance[['prism_consumer_id', 'prism_account_id','month','acct_type','sma', 'ema']]
+
+    
+    def convert_to_month_identifier(df):
+        # Sort the DataFrame by month
+        df = df.sort_values('month', ascending=False)
+
+        # Create a dictionary to map month dates to month identifiers
+        month_identifier_mapping = {}
+        month_count = 1
+        for month in df['month'].unique():
+            month_identifier_mapping[month] = f'month{month_count}'
+            month_count += 1
+
+        # Replace month dates with month identifiers
+        df['month'] = df['month'].map(month_identifier_mapping)
+        return df
+
+    # Apply conversion function to each user and account type separately
+    converted_dfs = []
+    for (user_id, acct_type), user_acct_df in moving_averages.groupby(['prism_consumer_id', 'acct_type']):
+        converted_df = convert_to_month_identifier(user_acct_df)
+        converted_dfs.append(converted_df)
+    result_df = pd.concat(converted_dfs)
+    
+    #from code below, we decided we would look at the most recent seven months of data for users
+    #explore_time_span(std_balance)
+    result_df_top_months = result_df[result_df['month'].isin(['month1','month2', 'month3', 'month4', 'month5', 'month6', 'month7'])]
+    
+    top_results = result_df_top_months[result_df_top_months['acct_type'].isin(['CHECKING', 'SAVINGS', 'CREDIT CARD'])]
+    pivoted_top = top_results.pivot_table(index='prism_consumer_id', columns = ['acct_type','month'], values = ['sma', 'ema'])
+    new_columns = [f"{col[1].lower()}_{col[2]}_{col[0].upper()}" for col in pivoted_top.columns]
+    pivoted_top.columns = new_columns
+    pivoted_top = pivoted_top.fillna(0)
+    
+    return pivoted_top
+
+
+# Calculate trend in standardized differences in balance
 def balance_diff_std(inflows, outflows):
     # copy dataframes
     outflows_negate = outflows.copy()
@@ -186,7 +262,8 @@ def create_features():
     inf_features = inflow_features(inflows, outflows, income)
     
     #new balance funcs
-    balance_std_coeff = balance_cumsum_std(inflows,outflows,acct)
+    balance_std_df, balance_std_coeff = balance_cumsum_std(inflows,outflows,acct)
+    mvg_avgs = moving_avg(balance_std_df)
 
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')
@@ -197,12 +274,18 @@ def create_features():
 
     cnt_percs_coeff_balance = pd.merge(cnt_both_perc_coeff, balance_std_coeff, on = 'prism_consumer_id', how = 'outer')
 
-    all_features = pd.merge(cnt_percs_coeff_balance, inf_features, on='prism_consumer_id', how='outer')
+    with_mvg_avgs = pd.merge(mvg_avgs, cnt_percs_coeff_balance, on = 'prism_consumer_id', how = 'outer')
+    with_inflow_features = pd.merge(with_mvg_avgs, inf_features, on = 'prism_consumer_id', how = 'outer')
+
+    all_features = pd.merge(cnt_percs_coeff_balance, with_inflow_features, on='prism_consumer_id', how='outer')
+
+    print(all_features.columns)
 
     # Get target variable and drop unnecessary columns
     final_df = pd.merge(all_features, cons, on='prism_consumer_id')
     final_df.drop(columns=['APPROVED','evaluation_date'], inplace=True)
     final_df['FPF_TARGET'] = final_df['FPF_TARGET'].astype(int)
+    final_df = final_df.set_index('prism_consumer_id')
 
     X = final_df.drop(columns=['FPF_TARGET'])
     y = final_df['FPF_TARGET']
