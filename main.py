@@ -12,7 +12,7 @@ def main():
     print("====== Features created. ======")
     # Train the model
     best_thresh = evaluate_features(X,y)
-    model = run_model(X, y, best_thresh)
+    reason, model = run_model(X, y, best_thresh)
     # Test the model
     # test_model()
     
