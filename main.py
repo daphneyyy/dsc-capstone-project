@@ -2,7 +2,6 @@ from feature_creation import *
 from xgboost import XGBClassifier
 from matplotlib import pyplot as plt
 from model_predictions import run_model, evaluate_features
-# from model import *
 
 def main():
     # Create the features
@@ -13,7 +12,7 @@ def main():
     print("====== Features created. ======")
     # Train the model
     best_thresh = evaluate_features(X,y)
-    run_model(X,y, best_thresh)
+    model = run_model(X, y, best_thresh)
     # Test the model
     # test_model()
     

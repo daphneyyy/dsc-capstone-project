@@ -6,6 +6,7 @@ from sklearn.feature_selection import SelectFromModel
 from numpy import sort
 from sklearn import metrics
 from sklearn.model_selection import cross_validate
+from importance_explanation import *
 
 #helper to avoid using variables that could discriminate against certain groups
 def exclude_columns_with_substrings(df, substrings):
@@ -81,17 +82,21 @@ def run_model(X,y, best_thresh):
     #threshold selected from evaluate features function
     selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
+    select_X_train.columns=X_train.columns[selection.get_support()] 
     select_X_train.to_csv('x_selected_features.csv')
         # train model
     selection_model = XGBClassifier()
     selection_model.fit(select_X_train, y_train)
         # eval model
     select_X_test = selection.transform(X_test)
+    select_X_test.columns=X_test.columns[selection.get_support()]
     y_pred = selection_model.predict(select_X_test)
     predictions = [round(value) for value in y_pred]
     accuracy = accuracy_score(y_test, predictions)
     auc = metrics.roc_auc_score(y_test,  predictions)
     print(" n=%d, Accuracy: %.2f%% , AUC: %.3f" % ( select_X_train.shape[1], accuracy*100.0, auc))
     print(metrics.classification_report(y_test, predictions))
-
-    return model
+    
+    reasons = shap_importance(X_test, selection, selection_model)
+    
+    return reasons, selection_model
