@@ -12,7 +12,8 @@ def main():
     print("Number of features: ", X.shape[1] )
     print("====== Features created. ======")
     # Train the model
-    run_model(X,y)
+    best_thresh = evaluate_features(X,y)
+    run_model(X,y, best_thresh)
     # Test the model
     # test_model()
     

@@ -5,45 +5,81 @@ from sklearn.metrics import accuracy_score
 from sklearn.feature_selection import SelectFromModel
 from numpy import sort
 from sklearn import metrics
+from sklearn.model_selection import cross_validate
+
+#helper to avoid using variables that could discriminate against certain groups
+def exclude_columns_with_substrings(df, substrings):
+        # Initialize a list to store column names to exclude
+        columns_to_exclude = []
+        
+        # Iterate through the column names
+        for col in df.columns:
+            # Check if any substring is present in the column name
+            if any(substring in col for substring in substrings):
+                columns_to_exclude.append(col)
+        
+        # Exclude columns containing the specified substrings
+        df_filtered = df.drop(columns=columns_to_exclude)
+        
+        return df_filtered
+
+def evaluate_features(X, y):
+
+    
+    X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' ])
 
 
-
-def evaluate_features(X,y):
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=7, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
     model = XGBClassifier()
     model.fit(X_train, y_train)
-    #plot_importance(model)
-
-    # Fit model using each importance as a threshold
-
+    
+    # Get feature importances
     thresholds = sort(model.feature_importances_)
-    for thresh in thresholds:
-        #select features using threshold
+    
+    best_auc = 0
+    best_acc = 0
+    best_thresh = 0
+    
+    #first 40 are all trivially small thresholds that do not change ths features used
+    for thresh in thresholds[40:]:
+        # Select features using threshold
         selection = SelectFromModel(model, threshold=thresh, prefit=True)
         select_X_train = selection.transform(X_train)
-        # train model
+        
+        # Create a new XGBClassifier with selected features
         selection_model = XGBClassifier()
-        selection_model.fit(select_X_train, y_train)
-        # eval model
-        select_X_test = selection.transform(X_test)
-        y_pred = selection_model.predict(select_X_test)
-        predictions = [round(value) for value in y_pred]
-        accuracy = accuracy_score(y_test, predictions)
-        auc = metrics.roc_auc_score(y_test,  predictions)
-        print("Thresh=%.8f, n=%d, Accuracy: %.2f%% , AUC: %.3f" % (thresh, select_X_train.shape[1], accuracy*100.0, auc))
+        
+        # Define evaluation metrics
+        scoring = {'auc': 'roc_auc', 'accuracy': 'accuracy'}
+        
+        # Evaluate the model using cross-validation
+        scores = cross_validate(selection_model, select_X_train, y_train, cv=5, scoring=scoring)
+        
+        # Compute mean AUC and accuracy
+        mean_auc = scores['test_auc'].mean()
+        mean_acc = scores['test_accuracy'].mean()
+        
+        # Check if this threshold gives a higher AUC
+        if mean_auc > best_auc:
+            best_auc = mean_auc
+            best_acc = mean_acc
+            best_thresh = thresh
+    
+    # Print the best threshold, AUC, and accuracy
+    print("Best Threshold=%.8f, Best AUC=%.3f, Best Accuracy=%.2f%%" % (best_thresh, best_auc, best_acc*100))
+    return best_thresh
 
+def run_model(X,y, best_thresh):
 
-#Thresh=0.00750565, n=38, Accuracy: 83.83% , AUC: 0.691 from evaluate_features(X,y)
-def run_model(X,y):
+    X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' ])
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=7, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
     model = XGBClassifier()
     model.fit(X_train, y_train)
     X_train.to_csv('x_features.csv')
 
     #threshold selected from evaluate features function
-    selection = SelectFromModel(model, threshold=0.00750565, prefit=True).set_output(transform = 'pandas')
+    selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
     select_X_train.to_csv('x_selected_features.csv')
         # train model

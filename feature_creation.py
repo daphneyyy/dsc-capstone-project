@@ -244,18 +244,29 @@ def balance_diff_std(inflows, outflows):
     
     return coefficients_std_flat
 
+#helper function to differentiate columns from various variable creation
+def rename_columns(df, suffix):
+    df = df.set_index('prism_consumer_id')
+    df = df.add_suffix(suffix)
+    return df.reset_index()
+
 # Create features
 def create_features():
+
     cons, acct, inflows, outflows = load_data()
     
     # Calculate percentage of spending by category for each consumer
     cat_percentage = cat_percent(inflows, outflows, cons)
+    cat_percentage = rename_columns(cat_percentage, '_cat_percentage')
 
     # Count of accounts by type for each consumer
     acct_count_flat = account_count(inflows)
+    acct_count_flat = rename_columns(acct_count_flat, '_acct_count')
+    
 
     # Standardize and calculate cumulative sum of inflows and outflows
     coefficients_std_flat = balance_diff_std(inflows, outflows)
+    coefficients_std_flat = rename_columns(coefficients_std_flat, '_balance_std_diff_regress_coeff')
 
     income, income_percentage = income_estimate(inflows, outflows, cons)
     
@@ -263,7 +274,19 @@ def create_features():
     
     #new balance funcs
     balance_std_df, balance_std_coeff = balance_cumsum_std(inflows,outflows,acct)
+    balance_std_coeff = rename_columns(balance_std_coeff, '_balance_std_regress_coeff')
+
     mvg_avgs = moving_avg(balance_std_df)
+
+    #analyzes df columns names
+    # l = ['acct_count_flat', 'cat_percentage', 'coefficients_std_flat', 'income_percentage', 'balance_std_coeff','mvg_avgs','inf_features']
+    # n = 0
+    # for i in [acct_count_flat, cat_percentage, coefficients_std_flat, income_percentage, balance_std_coeff,mvg_avgs,inf_features]:
+    #     print(len(i))
+    #     name = l[n]
+    #     i.to_csv(name)
+    #     n+=1
+
 
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')
@@ -275,9 +298,7 @@ def create_features():
     cnt_percs_coeff_balance = pd.merge(cnt_both_perc_coeff, balance_std_coeff, on = 'prism_consumer_id', how = 'outer')
 
     with_mvg_avgs = pd.merge(mvg_avgs, cnt_percs_coeff_balance, on = 'prism_consumer_id', how = 'outer')
-    with_inflow_features = pd.merge(with_mvg_avgs, inf_features, on = 'prism_consumer_id', how = 'outer')
-
-    all_features = pd.merge(cnt_percs_coeff_balance, with_inflow_features, on='prism_consumer_id', how='outer')
+    all_features = pd.merge(with_mvg_avgs, inf_features, on = 'prism_consumer_id', how = 'outer')
 
     print(all_features.columns)
 
