@@ -82,13 +82,13 @@ def get_top_reasons(shap_values, feature_names, num_reasons=3):
     
 def shap_importance(X, selection, selection_model):
     X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' ])
-    holdout = selection.transform(X_new)
-    holdout.columns=X_new.columns[selection.get_support()]
+    selected_X = selection.transform(X_new)
+    selected_X.columns=X_new.columns[selection.get_support()]
 
     explainer = shap.TreeExplainer(selection_model)
-    shap_values = explainer.shap_values(holdout)
+    shap_values = explainer.shap_values(selected_X)
 
-    top_reasons_per_consumer = get_top_reasons(shap_values, holdout.columns)
+    top_reasons_per_consumer = get_top_reasons(shap_values, selected_X.columns)
     return top_reasons_per_consumer
 
 def run_model(X,y, best_thresh):
