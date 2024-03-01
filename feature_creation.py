@@ -3,29 +3,12 @@ import numpy as np
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from IncomeEstimation.income_estimation import income_estimate
 from income_features import inflow_features
+from sklearn.model_selection import train_test_split
 
 # ignore warnings
 import warnings
 warnings.filterwarnings('ignore')
 
-# Load data
-def load_data():
-    cons = pd.read_parquet('q2_consDF_final.pqt')
-    acct = pd.read_parquet('q2_acctDF_final.pqt')
-    inflows = pd.read_parquet('q2_inflows_final.pqt')
-    outflows = pd.concat([
-        pd.read_parquet('q2_outflows_1sthalf_final.pqt'),
-        pd.read_parquet('q2_outflows_2ndhalf_final.pqt')
-    ])
-    inflows = inflows.rename(columns={"memo_clean": "memo"})
-    outflows = outflows.rename(columns={"memo_clean": "memo"})
-
-    # Map account types to inflows and outflows
-    acct_types = acct.set_index('prism_account_id')['account_type'].to_dict()
-    inflows['acct_type'] = inflows['prism_account_id'].apply(lambda x: acct_types[x])
-    outflows['acct_type'] = outflows['prism_account_id'].apply(lambda x: acct_types[x])
-    
-    return cons, acct, inflows, outflows
 
 def cat_percent(inflows, outflows, cons):
     # Total inflow amount by consumer and account type
@@ -44,15 +27,37 @@ def cat_percent(inflows, outflows, cons):
     
     X = cat_percentage.drop(columns=['prism_consumer_id'])
     y = (cons.sort_values(by='prism_consumer_id').reset_index(drop=True))['FPF_TARGET']
-    coefficients_perc = LogisticRegression().fit(X, y).coef_[0]
 
-    importance = np.abs(coefficients_perc)
-    df_importance = pd.DataFrame({feature: importance_value for feature, importance_value in zip(X.columns, importance)}, index=[0]).transpose()
-    df_importance.sort_values(0, ascending=False, inplace=True)
-    df_importance.columns = ['importance']
-    important_category = df_importance[df_importance['importance'] > 0.1].index.to_list()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=7, stratify=y)
     
-    return cat_percentage[['prism_consumer_id'] + important_category]
+    model = LogisticRegression().fit(X_train, y_train)
+    predictions = model.predict(X)
+    
+    
+    return predictions, model
+
+def cat_percent_testing(inflows, outflows, model):
+    # Total inflow amount by consumer and account type
+    inflows_acc_amount = inflows.groupby(['prism_consumer_id'])['amount'].sum().reset_index()
+    
+    # Total outflow amount by consumer, account type, and category
+    outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'category_description'])['amount'].sum().reset_index()
+    
+    # Calculate percentage of spending by category for each consumer
+    percentage_df = pd.merge(inflows_acc_amount, outflows_cat_amount, on=['prism_consumer_id'], suffixes=('_inflows', '_outflows'), how='left')
+    percentage_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
+    percentage_df['amount_outflows'].fillna(0, inplace=True)
+    percentage_df['percentage'] = percentage_df['amount_outflows'] / percentage_df['amount_inflows']
+    cat_percentage = percentage_df.pivot_table(index='prism_consumer_id', columns='category_description', values='percentage', aggfunc='first', fill_value=0)
+    cat_percentage.reset_index(inplace=True)
+    
+    X = cat_percentage.drop(columns=['prism_consumer_id'])
+
+    predictions = model.predict(X)
+    
+
+    return predictions
+
 
 
 def account_count(inflows):
@@ -251,13 +256,25 @@ def rename_columns(df, suffix):
     return df.reset_index()
 
 # Create features
-def create_features():
+def create_features(cons, acct, inflows, outflows, trainBool = True, cat_income_model = None, cat_percent_model = None):
 
-    cons, acct, inflows, outflows = load_data()
+    if trainBool:
+        income, cat_income_predictions, cat_income_model  = income_estimate(inflows, outflows, cons)
+
+    else:
+        income, cat_income_predictions   = income_estimate(inflows, outflows, cons, trainBool)
+
+    cat_income_predictions = rename_columns(cat_income_predictions, '_cat_income_percentage')
+
     
     # Calculate percentage of spending by category for each consumer
-    cat_percentage = cat_percent(inflows, outflows, cons)
-    cat_percentage = rename_columns(cat_percentage, '_cat_percentage')
+
+    if trainBool:
+        cat_percent_predictions, cat_percent_model = cat_percent(inflows, outflows, cons)
+    else:
+        cat_percent_predictions = cat_percent_testing(inflows, outflows, cons, trainBool )
+
+    cat_percent_predictions = rename_columns(cat_percent_predictions, '_cat_percentage')
 
     # Count of accounts by type for each consumer
     acct_count_flat = account_count(inflows)
@@ -268,8 +285,6 @@ def create_features():
     coefficients_std_flat = balance_diff_std(inflows, outflows)
     coefficients_std_flat = rename_columns(coefficients_std_flat, '_balance_std_diff_regress_coeff')
 
-    income, income_percentage = income_estimate(inflows, outflows, cons)
-    
     inf_features = inflow_features(inflows, outflows, income)
     
     #new balance funcs
@@ -278,37 +293,30 @@ def create_features():
 
     mvg_avgs = moving_avg(balance_std_df)
 
-    #analyzes df columns names
-    # l = ['acct_count_flat', 'cat_percentage', 'coefficients_std_flat', 'income_percentage', 'balance_std_coeff','mvg_avgs','inf_features']
-    # n = 0
-    # for i in [acct_count_flat, cat_percentage, coefficients_std_flat, income_percentage, balance_std_coeff,mvg_avgs,inf_features]:
-    #     print(len(i))
-    #     name = l[n]
-    #     i.to_csv(name)
-    #     n+=1
-
-
     # Merge all features
-    cnt_and_perc = pd.merge(acct_count_flat, cat_percentage, on='prism_consumer_id', how='outer')
+    cnt_and_perc = pd.merge(acct_count_flat, cat_percent_predictions, on='prism_consumer_id', how='outer')
     cnt_and_perc = cnt_and_perc.fillna(0)
     cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on='prism_consumer_id', how='outer', suffixes=('_cnt', '_coeff'))
     
-    cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, income_percentage, on = 'prism_consumer_id', how = 'outer')
+    cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, cat_income_predictions, on = 'prism_consumer_id', how = 'outer')
 
     cnt_percs_coeff_balance = pd.merge(cnt_both_perc_coeff, balance_std_coeff, on = 'prism_consumer_id', how = 'outer')
 
     with_mvg_avgs = pd.merge(mvg_avgs, cnt_percs_coeff_balance, on = 'prism_consumer_id', how = 'outer')
     all_features = pd.merge(with_mvg_avgs, inf_features, on = 'prism_consumer_id', how = 'outer')
 
-    print(all_features.columns)
+    if trainBool:
+        # Get target variable and drop unnecessary columns
+        final_df = pd.merge(all_features, cons, on='prism_consumer_id')
+        final_df.drop(columns=['APPROVED','evaluation_date'], inplace=True)
+        final_df['FPF_TARGET'] = final_df['FPF_TARGET'].astype(int)
+        final_df = final_df.set_index('prism_consumer_id')
 
-    # Get target variable and drop unnecessary columns
-    final_df = pd.merge(all_features, cons, on='prism_consumer_id')
-    final_df.drop(columns=['APPROVED','evaluation_date'], inplace=True)
-    final_df['FPF_TARGET'] = final_df['FPF_TARGET'].astype(int)
-    final_df = final_df.set_index('prism_consumer_id')
+        X = final_df.drop(columns=['FPF_TARGET'])
+        y = final_df['FPF_TARGET']
 
-    X = final_df.drop(columns=['FPF_TARGET'])
-    y = final_df['FPF_TARGET']
+        return X,y, cat_percent_model, cat_income_model
     
-    return X, y
+    else:
+        
+        return all_features

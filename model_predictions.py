@@ -7,6 +7,8 @@ from numpy import sort
 from sklearn import metrics
 from sklearn.model_selection import cross_validate
 
+from feature_creation import *
+
 #helper to avoid using variables that could discriminate against certain groups
 def exclude_columns_with_substrings(df, substrings):
         # Initialize a list to store column names to exclude
@@ -46,30 +48,26 @@ def evaluate_features(X, y):
         selection = SelectFromModel(model, threshold=thresh, prefit=True)
         select_X_train = selection.transform(X_train)
         
-        # Create a new XGBClassifier with selected features
         selection_model = XGBClassifier()
         
         # Define evaluation metrics
         scoring = {'auc': 'roc_auc', 'accuracy': 'accuracy'}
         
-        # Evaluate the model using cross-validation
         scores = cross_validate(selection_model, select_X_train, y_train, cv=5, scoring=scoring)
         
         # Compute mean AUC and accuracy
         mean_auc = scores['test_auc'].mean()
         mean_acc = scores['test_accuracy'].mean()
-        
-        # Check if this threshold gives a higher AUC
+
         if mean_auc > best_auc:
             best_auc = mean_auc
             best_acc = mean_acc
             best_thresh = thresh
     
-    # Print the best threshold, AUC, and accuracy
     print("Best Threshold=%.8f, Best AUC=%.3f, Best Accuracy=%.2f%%" % (best_thresh, best_auc, best_acc*100))
     return best_thresh
 
-def run_model(X,y, best_thresh):
+def train_model(X,y, best_thresh):
 
     X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' ])
 
@@ -88,10 +86,16 @@ def run_model(X,y, best_thresh):
         # eval model
     select_X_test = selection.transform(X_test)
     y_pred = selection_model.predict(select_X_test)
-    predictions = [round(value) for value in y_pred]
-    accuracy = accuracy_score(y_test, predictions)
-    auc = metrics.roc_auc_score(y_test,  predictions)
+    accuracy = accuracy_score(y_test, y_pred)
+    auc = metrics.roc_auc_score(y_test,  y_pred)
     print(" n=%d, Accuracy: %.2f%% , AUC: %.3f" % ( select_X_train.shape[1], accuracy*100.0, auc))
-    print(metrics.classification_report(y_test, predictions))
+    print(metrics.classification_report(y_test, y_pred))
 
-    return model
+    return selection_model, selection
+
+def run_model( selection_model, selection, holdout):
+    X = create_features(holdout)
+    X_subset  = selection.transform(X)
+    predictions = selection_model.predict(X_subset)
+    predictions.to_csv('holdout_predictions.csv')
+    return predictions
