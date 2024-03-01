@@ -3,6 +3,7 @@ from feature_creation import *
 from xgboost import XGBClassifier
 from matplotlib import pyplot as plt
 from model_predictions import *
+from explanation import *
 # from model import *
 
 def main():
@@ -30,6 +31,7 @@ def main():
     consTest, acctTest, inflowsTest, outflowsTest = load_holdout_data()
     XTest = create_features(consTest, acctTest, inflowsTest, outflowsTest, False, cat_percent_model, cat_income_model)
     predictions, reasons = run_model(selection_model , selection, XTest)
+    explanation(reasons)
     print("====== Predictions complete ======")
     
 if __name__ == "__main__":

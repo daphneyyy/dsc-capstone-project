@@ -7,6 +7,7 @@ from numpy import sort
 from sklearn import metrics
 from sklearn.model_selection import cross_validate
 import shap
+from matplotlib import pyplot as plt
 
 from feature_creation import *
 
@@ -78,11 +79,7 @@ def get_top_reasons(shap_values, feature_names, num_reasons=3):
         top_reasons.append(reasons)
     return top_reasons
     
-def shap_importance(X, selection, selection_model):
-    X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' , 'CD'])
-    holdout = selection.transform(X_new)
-    holdout.columns=X_new.columns[selection.get_support()]
-
+def shap_importance(holdout, selection_model):
     explainer = shap.TreeExplainer(selection_model)
     shap_values = explainer.shap_values(holdout)
 
@@ -120,9 +117,12 @@ def train_model(X,y, best_thresh):
     return selection_model, selection
 
 def run_model( selection_model, selection, holdout):
-    X_subset  = selection.transform(holdout)
+    X_new = exclude_columns_with_substrings(holdout, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS', 'CD'])
+    X_new.set_index('prism_consumer_id', inplace=True)
+    X_subset  = selection.transform(X_new)
+    X_subset.columns = X_new.columns[selection.get_support()] 
     print(X_subset.columns)
     predictions = selection_model.predict(X_subset)
-    predictions.to_csv('holdout_predictions.csv')
-    reasons = shap_importance(X_subset, selection, selection_model)
+    pd.DataFrame(predictions, index=X_subset.index, columns=['FPF_TARGET']).to_csv('holdout_predictions.csv')
+    reasons = shap_importance(X_subset, selection_model)
     return predictions, reasons
