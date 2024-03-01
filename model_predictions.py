@@ -122,6 +122,13 @@ def run_model( selection_model, selection, holdout):
     X_subset  = selection.transform(X_new)
     X_subset.columns = X_new.columns[selection.get_support()] 
     print(X_subset.columns)
+    
+    
+    predicted_probabilities = selection_model.predict_proba(X_subset)
+    probabilities_class_1 = predicted_probabilities[:, 1]
+    pd.DataFrame(probabilities_class_1, index=X_subset.index, columns=['FPF_TARGET']).to_csv('holdout_probabilities_class_1.csv')
+    
+    
     predictions = selection_model.predict(X_subset)
     pd.DataFrame(predictions, index=X_subset.index, columns=['FPF_TARGET']).to_csv('holdout_predictions.csv')
     reasons = shap_importance(X_subset, selection_model)
