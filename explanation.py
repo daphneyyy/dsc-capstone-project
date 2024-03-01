@@ -23,7 +23,7 @@ def explanation(reason):
     for i, count in enumerate(sorted_feature_counts):
         plt.text(count, i, str(count), ha='left', va='center', color='black')
 
-    plt.savefig('most_common_reasons.png', bbox_inches='tight')
+    plt.savefig('output/most_common_reasons.png', bbox_inches='tight')
     # plt.show()
     
     

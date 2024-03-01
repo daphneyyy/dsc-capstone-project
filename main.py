@@ -4,7 +4,6 @@ from xgboost import XGBClassifier
 from matplotlib import pyplot as plt
 from model_predictions import *
 from explanation import *
-# from model import *
 
 def main():
     # Training the model
@@ -30,7 +29,7 @@ def main():
     print("====== Running the model ======")
     consTest, acctTest, inflowsTest, outflowsTest = load_holdout_data()
     XTest = create_features(consTest, acctTest, inflowsTest, outflowsTest, False, cat_percent_model, cat_income_model)
-    predictions, reasons = run_model(selection_model , selection, XTest)
+    predictions_prob, reasons = run_model(selection_model , selection, XTest)
     explanation(reasons)
     print("====== Predictions complete ======")
     

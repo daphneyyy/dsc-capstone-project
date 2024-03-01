@@ -94,14 +94,14 @@ def train_model(X,y, best_thresh):
     X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
     model = XGBClassifier()
     model.fit(X_train, y_train)
-    X_train.to_csv('x_features.csv')
+    X_train.to_csv('output/x_features.csv')
 
     #threshold selected from evaluate features function
     selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
     select_X_train.columns = X_train.columns[selection.get_support()] 
     print(select_X_train.columns)
-    select_X_train.to_csv('x_selected_features.csv')
+    select_X_train.to_csv('output/x_selected_features.csv')
         # train model
     selection_model = XGBClassifier()
     selection_model.fit(select_X_train, y_train)
@@ -126,10 +126,12 @@ def run_model( selection_model, selection, holdout):
     
     predicted_probabilities = selection_model.predict_proba(X_subset)
     probabilities_class_1 = predicted_probabilities[:, 1]
-    pd.DataFrame(probabilities_class_1, index=X_subset.index, columns=['FPF_TARGET']).to_csv('holdout_probabilities_class_1.csv')
-    
+    probabilities_class_1 = pd.DataFrame(probabilities_class_1, index=X_subset.index, columns=['FPF_TARGET'])
+    probabilities_class_1.to_csv('output/holdout_probabilities_class_1.csv')
     
     predictions = selection_model.predict(X_subset)
-    pd.DataFrame(predictions, index=X_subset.index, columns=['FPF_TARGET']).to_csv('holdout_predictions.csv')
+    predictions = pd.DataFrame(predictions, index=X_subset.index, columns=['FPF_TARGET'])
+    predictions.to_csv('output/holdout_predictions.csv')
+    
     reasons = shap_importance(X_subset, selection_model)
-    return predictions, reasons
+    return probabilities_class_1, reasons

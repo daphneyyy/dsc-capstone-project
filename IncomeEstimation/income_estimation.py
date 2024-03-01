@@ -84,15 +84,15 @@ def cat_percent_income_testing(incomes, inflow, outflows, model):
     return predictions_df
 
 def income_estimate(inflow, outflow, cons, trainBool = True, model = None):
-    #inflow_clean, determined_transactions, undetermined_transactions = process_data(inflow)
-    #complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
+    inflow_clean, determined_transactions, undetermined_transactions = process_data(inflow)
+    complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
 
     if trainBool:
-        complete_income = pd.read_csv('IncomeEstimation/income_estimates.csv')
+        # complete_income = pd.read_csv('../output/income_estimates.csv')
         predictions, model = cat_percent_income(complete_income, inflow, outflow, cons)
         return complete_income, predictions, model
     else:
-        complete_income = pd.read_csv('IncomeEstimation/income_holdout_estimates.csv')
+        # complete_income = pd.read_csv('../output/income_holdout_estimates.csv')
         predictions = cat_percent_income_testing(complete_income, inflow, outflow, model)
     
         return  complete_income, predictions
