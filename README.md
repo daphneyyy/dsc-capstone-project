@@ -18,12 +18,14 @@ of predicting the likelihood of individuals defaulting on their payments. We wil
   conda activate dsc180b
   ```
 
-## Running Code:
-python3 for Mac,
-python for Windows
-
+## Run Code:
+  #### `python3` for Mac:
   ```sh
   python3 main.py
+  ```
+  #### `python` for Windows:
+  ```sh
+  python main.py
   ```
 
 ## Deactivate environment
@@ -31,4 +33,7 @@ python for Windows
   ```sh 
   conda deactivate
   ```
-    
+## Delete environment (optional)
+  ```sh
+  conda env remove -n dsc180b --all
+  ```
