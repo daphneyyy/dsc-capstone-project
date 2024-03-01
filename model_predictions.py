@@ -118,6 +118,6 @@ def run_model(X,y, best_thresh):
     print(" n=%d, Accuracy: %.2f%% , AUC: %.3f" % ( select_X_train.shape[1], accuracy*100.0, auc))
     print(metrics.classification_report(y_test, predictions))
     
-    reasons = shap_importance(X_test, selection, selection_model)
+    all_reasons = shap_importance(X_test, selection, selection_model)
     
-    return reasons, selection_model
+    return [all_reasons, selection_model]
