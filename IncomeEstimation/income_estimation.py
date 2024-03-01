@@ -30,24 +30,26 @@ def cat_percent_income(incomes,inflow, outflows, cons):
     percentage_df['percentage'] = percentage_df['amount'] / percentage_df['amount_income']
 
 
-    cat_percentage = percentage_df.pivot(index='prism_consumer_id', columns='category_description', values='percentage').add_suffix('_income_percent')
+    cat_percentage = percentage_df.pivot(index='prism_consumer_id', columns='category_description', values='percentage')
     cat_percentage.reset_index(inplace=True)
     cat_percentage.fillna(0, inplace=True)
     
 
         
-    X = cat_percentage.drop(columns=['prism_consumer_id'])
+    X = cat_percentage.set_index('prism_consumer_id')
     y = (cons.sort_values(by='prism_consumer_id').reset_index(drop=True))['FPF_TARGET']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=7, stratify=y)
     
-    
+    print(X.columns)
     
     model = LogisticRegression().fit(X_train, y_train)
     predictions = model.predict(X)
     
-    
-    return predictions, model
+    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
+    predictions_df.reset_index(inplace=True)
+
+    return predictions_df, model
 
 def cat_percent_income_testing(incomes, inflow, outflows, model):
 
@@ -66,28 +68,31 @@ def cat_percent_income_testing(incomes, inflow, outflows, model):
     percentage_df['percentage'] = percentage_df['amount'] / percentage_df['amount_income']
 
 
-    cat_percentage = percentage_df.pivot(index='prism_consumer_id', columns='category_description', values='percentage').add_suffix('_income_percent')
+    cat_percentage = percentage_df.pivot(index='prism_consumer_id', columns='category_description', values='percentage')
     cat_percentage.reset_index(inplace=True)
     cat_percentage.fillna(0, inplace=True)
         
-    X = cat_percentage.drop(columns=['prism_consumer_id'])
+    X = cat_percentage.set_index('prism_consumer_id')
 
+    print(X.columns)
 
     predictions = model.predict(X)
     
+    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
+    predictions_df.reset_index(inplace=True)
+    
+    return predictions_df
 
-    return predictions
-
-def income_estimate(inflow, outflow, cons, trainBool = True):
+def income_estimate(inflow, outflow, cons, trainBool = True, model = None):
     #inflow_clean, determined_transactions, undetermined_transactions = process_data(inflow)
     #complete_income = run_model(inflow_clean, determined_transactions, undetermined_transactions)
 
     if trainBool:
-        complete_income = pd.read_csv('income_estimates.csv')
+        complete_income = pd.read_csv('IncomeEstimation/income_estimates.csv')
         predictions, model = cat_percent_income(complete_income, inflow, outflow, cons)
         return complete_income, predictions, model
     else:
-        complete_income = pd.read_csv('income_holdout_estimates.csv')
-        predictions = cat_percent_income_testing(inflow, outflow, model)
+        complete_income = pd.read_csv('IncomeEstimation/income_holdout_estimates.csv')
+        predictions = cat_percent_income_testing(complete_income, inflow, outflow, model)
     
         return  complete_income, predictions

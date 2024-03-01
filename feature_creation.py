@@ -25,7 +25,7 @@ def cat_percent(inflows, outflows, cons):
     cat_percentage = percentage_df.pivot_table(index='prism_consumer_id', columns='category_description', values='percentage', aggfunc='first', fill_value=0)
     cat_percentage.reset_index(inplace=True)
     
-    X = cat_percentage.drop(columns=['prism_consumer_id'])
+    X = cat_percentage.set_index('prism_consumer_id')
     y = (cons.sort_values(by='prism_consumer_id').reset_index(drop=True))['FPF_TARGET']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=7, stratify=y)
@@ -33,8 +33,10 @@ def cat_percent(inflows, outflows, cons):
     model = LogisticRegression().fit(X_train, y_train)
     predictions = model.predict(X)
     
-    
-    return predictions, model
+    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
+    predictions_df.reset_index(inplace=True)
+
+    return predictions_df, model
 
 def cat_percent_testing(inflows, outflows, model):
     # Total inflow amount by consumer and account type
@@ -51,12 +53,14 @@ def cat_percent_testing(inflows, outflows, model):
     cat_percentage = percentage_df.pivot_table(index='prism_consumer_id', columns='category_description', values='percentage', aggfunc='first', fill_value=0)
     cat_percentage.reset_index(inplace=True)
     
-    X = cat_percentage.drop(columns=['prism_consumer_id'])
+    X = cat_percentage.set_index('prism_consumer_id')
 
     predictions = model.predict(X)
     
+    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
+    predictions_df.reset_index(inplace=True)
 
-    return predictions
+    return predictions_df
 
 
 
@@ -262,7 +266,7 @@ def create_features(cons, acct, inflows, outflows, trainBool = True, cat_income_
         income, cat_income_predictions, cat_income_model  = income_estimate(inflows, outflows, cons)
 
     else:
-        income, cat_income_predictions   = income_estimate(inflows, outflows, cons, trainBool)
+        income, cat_income_predictions  = income_estimate(inflows, outflows, cons, trainBool, cat_income_model)
 
     cat_income_predictions = rename_columns(cat_income_predictions, '_cat_income_percentage')
 
@@ -272,7 +276,7 @@ def create_features(cons, acct, inflows, outflows, trainBool = True, cat_income_
     if trainBool:
         cat_percent_predictions, cat_percent_model = cat_percent(inflows, outflows, cons)
     else:
-        cat_percent_predictions = cat_percent_testing(inflows, outflows, cons, trainBool )
+        cat_percent_predictions = cat_percent_testing(inflows, outflows, cat_percent_model)
 
     cat_percent_predictions = rename_columns(cat_percent_predictions, '_cat_percentage')
 
@@ -296,7 +300,7 @@ def create_features(cons, acct, inflows, outflows, trainBool = True, cat_income_
     # Merge all features
     cnt_and_perc = pd.merge(acct_count_flat, cat_percent_predictions, on='prism_consumer_id', how='outer')
     cnt_and_perc = cnt_and_perc.fillna(0)
-    cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on='prism_consumer_id', how='outer', suffixes=('_cnt', '_coeff'))
+    cnt_perc_coeff = pd.merge(cnt_and_perc, coefficients_std_flat, on='prism_consumer_id', how='outer')
     
     cnt_both_perc_coeff = pd.merge(cnt_perc_coeff, cat_income_predictions, on = 'prism_consumer_id', how = 'outer')
 

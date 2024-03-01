@@ -29,7 +29,7 @@ def main():
     print("====== Running the model ======")
     consTest, acctTest, inflowsTest, outflowsTest = load_holdout_data()
     XTest = create_features(consTest, acctTest, inflowsTest, outflowsTest, False, cat_percent_model, cat_income_model)
-    predictions = run_model(selection_model , selection, XTest)
+    predictions, reasons = run_model(selection_model , selection, XTest)
     print("====== Predictions complete ======")
     
 if __name__ == "__main__":
