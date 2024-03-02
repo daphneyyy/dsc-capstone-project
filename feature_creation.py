@@ -31,12 +31,14 @@ def cat_percent(inflows, outflows, cons):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=7, stratify=y)
     
     model = LogisticRegression().fit(X_train, y_train)
-    predictions = model.predict(X)
-    
-    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
-    predictions_df.reset_index(inplace=True)
 
-    return predictions_df, model
+    predicted_probabilities = model.predict_proba(X)
+    probabilities_class_1 = predicted_probabilities[:, 1]
+    
+    probs_df = pd.DataFrame(probabilities_class_1, index=X.index, columns=['Predictions'])
+    probs_df.reset_index(inplace=True)
+
+    return probs_df, model
 
 def cat_percent_testing(inflows, outflows, model):
     # Total inflow amount by consumer and account type
@@ -55,12 +57,15 @@ def cat_percent_testing(inflows, outflows, model):
     
     X = cat_percentage.set_index('prism_consumer_id')
 
-    predictions = model.predict(X)
     
-    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
-    predictions_df.reset_index(inplace=True)
+    predicted_probabilities = model.predict_proba(X)
+    probabilities_class_1 = predicted_probabilities[:, 1]
 
-    return predictions_df
+    
+    probs_df = pd.DataFrame(probabilities_class_1, index=X.index, columns=['Predictions'])
+    probs_df.reset_index(inplace=True)
+
+    return probs_df
 
 
 

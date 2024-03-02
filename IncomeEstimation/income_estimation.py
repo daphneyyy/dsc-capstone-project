@@ -41,15 +41,17 @@ def cat_percent_income(incomes,inflow, outflows, cons):
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=7, stratify=y)
     
-    print(X.columns)
     
     model = LogisticRegression().fit(X_train, y_train)
-    predictions = model.predict(X)
     
-    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
-    predictions_df.reset_index(inplace=True)
+    predicted_probabilities = model.predict_proba(X)
+    probabilities_class_1 = predicted_probabilities[:, 1]
 
-    return predictions_df, model
+    
+    probs_df = pd.DataFrame(probabilities_class_1, index=X.index, columns=['Predictions'])
+    probs_df.reset_index(inplace=True)
+
+    return probs_df, model
 
 def cat_percent_income_testing(incomes, inflow, outflows, model):
 
@@ -74,14 +76,15 @@ def cat_percent_income_testing(incomes, inflow, outflows, model):
         
     X = cat_percentage.set_index('prism_consumer_id')
 
-    print(X.columns)
 
-    predictions = model.predict(X)
+    predicted_probabilities = model.predict_proba(X)
+    probabilities_class_1 = predicted_probabilities[:, 1]
+
     
-    predictions_df = pd.DataFrame(predictions, index=X.index, columns=['Predictions'])
-    predictions_df.reset_index(inplace=True)
+    probs_df = pd.DataFrame(probabilities_class_1, index=X.index, columns=['Predictions'])
+    probs_df.reset_index(inplace=True)
     
-    return predictions_df
+    return probs_df
 
 def income_estimate(inflow, outflow, cons, trainBool = True, model = None):
     inflow_clean, determined_transactions, undetermined_transactions = process_data(inflow)
