@@ -100,7 +100,6 @@ def train_model(X,y, best_thresh):
     selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
     select_X_train.columns = X_train.columns[selection.get_support()] 
-    print(select_X_train.columns)
     select_X_train.to_csv('output/x_selected_features.csv')
         # train model
     selection_model = XGBClassifier()
@@ -121,7 +120,6 @@ def run_model( selection_model, selection, holdout):
     X_new.set_index('prism_consumer_id', inplace=True)
     X_subset  = selection.transform(X_new)
     X_subset.columns = X_new.columns[selection.get_support()] 
-    print(X_subset.columns)
     
     
     predicted_probabilities = selection_model.predict_proba(X_subset)
