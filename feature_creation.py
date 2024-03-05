@@ -273,7 +273,7 @@ def create_features(cons, acct, inflows, outflows, trainBool = True, cat_income_
     else:
         income, cat_income_predictions  = income_estimate(inflows, outflows, cons, trainBool, cat_income_model)
 
-    cat_income_predictions = rename_columns(cat_income_predictions, '_cat_income_percentage')
+    cat_income_predictions = rename_columns(cat_income_predictions, '_cat_income_proba')
 
     
     # Calculate percentage of spending by category for each consumer
@@ -283,7 +283,7 @@ def create_features(cons, acct, inflows, outflows, trainBool = True, cat_income_
     else:
         cat_percent_predictions = cat_percent_testing(inflows, outflows, cat_percent_model)
 
-    cat_percent_predictions = rename_columns(cat_percent_predictions, '_cat_percentage')
+    cat_percent_predictions = rename_columns(cat_percent_predictions, '_cat_proba')
 
     # Count of accounts by type for each consumer
     acct_count_flat = account_count(inflows)
