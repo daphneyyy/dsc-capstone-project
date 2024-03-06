@@ -29,7 +29,7 @@ def evaluate_features(X, y, use_model='xgb'):
     '''
     use_model: str
         The model to use for feature selection. Default is 'xgb' for XGBoost.
-        'svm' for Support Vector Machine, 'linear' for Logistic Regression.
+        'svm' for Support Vector Machine, 'lr' for Logistic Regression.
     '''
     
     X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' , 'CD'])
@@ -38,7 +38,7 @@ def evaluate_features(X, y, use_model='xgb'):
     X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
     if use_model == 'svm':
         model = SVC(kernel='linear', probability=True)
-    elif use_model == 'linear':
+    elif use_model == 'lr':
         model = LogisticRegression()
     else:
         model = XGBClassifier()
@@ -63,7 +63,7 @@ def evaluate_features(X, y, use_model='xgb'):
         
         if use_model == 'svm':
             selection_model = SVC(kernel='linear', probability=True)
-        elif use_model == 'linear':
+        elif use_model == 'lr':
             selection_model = LogisticRegression()
         else:
             selection_model = XGBClassifier()
@@ -111,7 +111,7 @@ def train_model(X,y, best_thresh, use_model='xgb'):
     # model = XGBClassifier()
     if use_model == 'svm':
         model = SVC(kernel='linear', probability=True)
-    elif use_model == 'linear':
+    elif use_model == 'lr':
         model = LogisticRegression()
     else:
         model = XGBClassifier()
@@ -127,7 +127,7 @@ def train_model(X,y, best_thresh, use_model='xgb'):
     # selection_model = XGBClassifier()
     if use_model == 'svm':
         selection_model = SVC(kernel='linear', probability=True)
-    elif use_model == 'linear':
+    elif use_model == 'lr':
         selection_model = LogisticRegression()
     else:
         selection_model = XGBClassifier()
