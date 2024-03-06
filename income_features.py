@@ -8,6 +8,7 @@ def inflow_over_outlow_features (inflows, outflows):
 
     # create percentage column
     percent_out_df = pd.merge(outflows_consumer_amount, inflows_cat_amount, on=["prism_consumer_id"], suffixes=('_total_outflows', '_inflow_per_cat'), how='right')
+    percent_out_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
     percent_out_df['amount_total_outflows'].fillna(0, inplace=True)
     percent_out_df['percentage'] = percent_out_df['amount_inflow_per_cat'] / percent_out_df['amount_total_outflows']
 
