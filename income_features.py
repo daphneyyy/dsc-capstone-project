@@ -7,7 +7,8 @@ def inflow_over_outlow_features (inflows, outflows):
     inflows_cat_amount = inflows.groupby(["prism_consumer_id", "category_description"])['amount'].sum().reset_index()
 
     # create percentage column
-    percent_out_df = pd.merge(outflows_consumer_amount, inflows_cat_amount, on=["prism_consumer_id"], suffixes=('_total_outflows', '_inflow_per_cat'))
+    percent_out_df = pd.merge(outflows_consumer_amount, inflows_cat_amount, on=["prism_consumer_id"], suffixes=('_total_outflows', '_inflow_per_cat'), how='right')
+    percent_out_df['amount_total_outflows'].fillna(0, inplace=True)
     percent_out_df['percentage'] = percent_out_df['amount_inflow_per_cat'] / percent_out_df['amount_total_outflows']
 
     # using a pivot table to format output
@@ -64,7 +65,9 @@ def outflow_over_income_features (inflows, outflows, income):
     outflows_cat_amount = outflows.groupby(["prism_consumer_id", "category_description"])['amount'].sum().reset_index()
 
     # create percentage column
-    percent_income_df = pd.merge(income_final, outflows_cat_amount, on=["prism_consumer_id"], suffixes=('_income', '_outflow_per_cat'))
+    percent_income_df = pd.merge(income_final, outflows_cat_amount, on=["prism_consumer_id"], suffixes=('_income', '_outflow_per_cat'), how='left')
+    percent_income_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
+    percent_income_df['amount'].fillna(0, inplace=True)
     percent_income_df['percentage'] = percent_income_df['amount'] / percent_income_df['amount_income']
 
     # using a pivot table to format output
