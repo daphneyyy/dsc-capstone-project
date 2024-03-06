@@ -1,14 +1,12 @@
-from xgboost import XGBClassifier
-from xgboost import plot_importance
-from sklearn.model_selection import train_test_split
+from xgboost import XGBClassifier, plot_importance
+from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.metrics import accuracy_score
 from sklearn.feature_selection import SelectFromModel
 from numpy import sort
 from sklearn import metrics
-from sklearn.model_selection import cross_validate
+from sklearn.svm import SVC
 import shap
 from matplotlib import pyplot as plt
-
 from feature_creation import *
 
 #helper to avoid using variables that could discriminate against certain groups
@@ -27,18 +25,31 @@ def exclude_columns_with_substrings(df, substrings):
         
         return df_filtered
 
-def evaluate_features(X, y):
-
+def evaluate_features(X, y, use_model='xgb'):
+    '''
+    use_model: str
+        The model to use for feature selection. Default is 'xgb' for XGBoost.
+        'svm' for Support Vector Machine, 'linear' for Logistic Regression.
+    '''
     
     X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS' , 'CD'])
 
 
     X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
-    model = XGBClassifier()
+    if use_model == 'svm':
+        model = SVC(kernel='linear', probability=True)
+    elif use_model == 'linear':
+        model = LogisticRegression()
+    else:
+        model = XGBClassifier()
     model.fit(X_train, y_train)
     
     # Get feature importances
-    thresholds = sort(model.feature_importances_)
+    if use_model == 'xgb':
+        feature_importances = model.feature_importances_
+    else:
+        feature_importances = np.abs(model.coef_[0])
+    thresholds = sort(feature_importances)
     
     best_auc = 0
     best_acc = 0
@@ -50,7 +61,12 @@ def evaluate_features(X, y):
         selection = SelectFromModel(model, threshold=thresh, prefit=True)
         select_X_train = selection.transform(X_train)
         
-        selection_model = XGBClassifier()
+        if use_model == 'svm':
+            selection_model = SVC(kernel='linear', probability=True)
+        elif use_model == 'linear':
+            selection_model = LogisticRegression()
+        else:
+            selection_model = XGBClassifier()
         
         # Define evaluation metrics
         scoring = {'auc': 'roc_auc', 'accuracy': 'accuracy'}
@@ -87,22 +103,34 @@ def shap_importance(holdout, selection_model):
     return top_reasons_per_consumer
 
 
-def train_model(X,y, best_thresh):
+def train_model(X,y, best_thresh, use_model='xgb'):
 
     X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS', 'CD'])
 
     X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
-    model = XGBClassifier()
+    # model = XGBClassifier()
+    if use_model == 'svm':
+        model = SVC(kernel='linear', probability=True)
+    elif use_model == 'linear':
+        model = LogisticRegression()
+    else:
+        model = XGBClassifier()
     model.fit(X_train, y_train)
-    X_train.to_csv('output/x_features.csv')
+    X_train.to_csv(f'output/x_features_{use_model}.csv')
 
     #threshold selected from evaluate features function
     selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
     select_X_train.columns = X_train.columns[selection.get_support()] 
-    select_X_train.to_csv('output/x_selected_features.csv')
+    select_X_train.to_csv(f'output/x_selected_features_{use_model}.csv')
         # train model
-    selection_model = XGBClassifier()
+    # selection_model = XGBClassifier()
+    if use_model == 'svm':
+        selection_model = SVC(kernel='linear', probability=True)
+    elif use_model == 'linear':
+        selection_model = LogisticRegression()
+    else:
+        selection_model = XGBClassifier()
     selection_model.fit(select_X_train, y_train)
         # eval model
     select_X_test = selection.transform(X_test)
@@ -115,7 +143,7 @@ def train_model(X,y, best_thresh):
     roc_auc = metrics.auc(fpr, tpr)
     display = metrics.RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc)
     display.plot()
-    plt.savefig("output/roc_curve_figure.png")
+    plt.savefig(f"output/roc_curve_figure_{use_model}.png")
 
     print(" n=%d, Accuracy: %.2f%% , AUC: %.3f" % ( select_X_train.shape[1], accuracy*100.0, roc_auc))
     print(metrics.classification_report(y_test, y_pred))

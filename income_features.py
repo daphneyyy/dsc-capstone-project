@@ -2,7 +2,6 @@ import pandas as pd
 
 def inflow_over_outlow_features (inflows, outflows):
 
-    # inflow categories and denominator processed
     outflows_consumer_amount = outflows.groupby(["prism_consumer_id"])['amount'].sum().reset_index()
     inflows_cat_amount = inflows.groupby(["prism_consumer_id", "category_description"])['amount'].sum().reset_index()
 
@@ -10,7 +9,9 @@ def inflow_over_outlow_features (inflows, outflows):
     percent_out_df = pd.merge(outflows_consumer_amount, inflows_cat_amount, on=["prism_consumer_id"], suffixes=('_total_outflows', '_inflow_per_cat'), how='right')
     percent_out_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
     percent_out_df['amount_inflow_per_cat'].fillna(0, inplace=True)
+    percent_out_df['amount_total_outflows'].fillna(0, inplace=True)
     percent_out_df['percentage'] = percent_out_df['amount_inflow_per_cat'] / percent_out_df['amount_total_outflows']
+    percent_out_df['percentage'] = percent_out_df['percentage'].where(percent_out_df['amount_total_outflows'] != 0, 0)
 
     # using a pivot table to format output
     cat_percent_outflow = percent_out_df.pivot_table(index='prism_consumer_id', columns='category_description', values='percentage', fill_value=0).add_suffix('_inflow_over_outflow')

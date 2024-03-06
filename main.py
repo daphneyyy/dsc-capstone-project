@@ -7,17 +7,13 @@ from explanation import *
 
 def main():
     # Training the model
-
-
-    print("====== Creating training features. ======")
-
+    print("====== Loading data. ======")
     consTrain, acctTrain, inflowsTrain, outflowsTrain = load_training_data()
-
+    print("====== Data loaded. ======")
+    print("====== Creating training features. ======")
     XTrain, yTrain, cat_percent_model, cat_income_model = create_features(consTrain, acctTrain, inflowsTrain, outflowsTrain)
-
     print("Number of features: ", XTrain.shape[1] )
     print("====== Features created. ======")
-
 
     print("====== Evaluating training features. ======")
     best_thresh = evaluate_features(XTrain,yTrain)
