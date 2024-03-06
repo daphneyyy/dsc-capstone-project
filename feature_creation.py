@@ -152,7 +152,7 @@ def balance_cumsum_std(inflow, outflow, acct):
 
 def moving_avg(std_balance):
     
-    
+    std_balance = std_balance.sort_values(by = ['prism_consumer_id', 'prism_account_id', 'month'], ascending = True)
     #function to define month span we can user for most users
     def explore_time_span(transactions):
         grouped_data = transactions.groupby(['prism_consumer_id', 'acct_type'])

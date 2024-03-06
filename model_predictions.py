@@ -108,9 +108,16 @@ def train_model(X,y, best_thresh):
     select_X_test = selection.transform(X_test)
     select_X_test.columns=X_test.columns[selection.get_support()] 
     y_pred = selection_model.predict(select_X_test)
+    y_probs = selection_model.predict_proba(select_X_test)[:, 1]
     accuracy = accuracy_score(y_test, y_pred)
-    auc = metrics.roc_auc_score(y_test,  y_pred)
-    print(" n=%d, Accuracy: %.2f%% , AUC: %.3f" % ( select_X_train.shape[1], accuracy*100.0, auc))
+
+    fpr, tpr, thresholds = metrics.roc_curve(y_test, y_probs)
+    roc_auc = metrics.auc(fpr, tpr)
+    display = metrics.RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc)
+    display.plot()
+    plt.savefig("output/roc_curve_figure.png")
+
+    print(" n=%d, Accuracy: %.2f%% , AUC: %.3f" % ( select_X_train.shape[1], accuracy*100.0, roc_auc))
     print(metrics.classification_report(y_test, y_pred))
     
     return selection_model, selection
