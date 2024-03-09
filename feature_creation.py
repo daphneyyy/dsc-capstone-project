@@ -41,13 +41,13 @@ def cat_percent(inflows, outflows, cons):
     return probs_df, model
 
 def cat_percent_testing(inflows, outflows, model):
-    # Total inflow amount by consumer and account type
+    # total inflow amount by consumer and account type
     inflows_acc_amount = inflows.groupby(['prism_consumer_id'])['amount'].sum().reset_index()
     
-    # Total outflow amount by consumer, account type, and category
+    # total outflow amount by consumer, account type, and category
     outflows_cat_amount = outflows.groupby(['prism_consumer_id', 'category_description'])['amount'].sum().reset_index()
     
-    # Calculate percentage of spending by category for each consumer
+    # calculate percentage of spending by category for each consumer
     percentage_df = pd.merge(inflows_acc_amount, outflows_cat_amount, on=['prism_consumer_id'], suffixes=('_inflows', '_outflows'), how='left')
     percentage_df['category_description'].fillna('UNCATEGORIZED', inplace=True)
     percentage_df['amount_outflows'].fillna(0, inplace=True)
@@ -93,14 +93,12 @@ def std_amount(x):
     return (x - x.mean()) / std_val
 
 def balance_cumsum_std(inflow, outflow, acct):
-    # copy dataframes
     outflows_negate = outflow.copy()
     outflows_negate['amount'] *= -1
     
-    # Merge inflows and outflows
+
     all_transactions = pd.concat([inflow,outflows_negate])
 
-    # Extract month from date
     all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
     
     #cumulative sum by month and account ID
@@ -157,17 +155,17 @@ def moving_avg(std_balance):
     def explore_time_span(transactions):
         grouped_data = transactions.groupby(['prism_consumer_id', 'acct_type'])
 
-        # Define a function to calculate the span of months
+       
         def calculate_month_span(group):
             min_date = group['posted_date'].min()  
             max_date = group['posted_date'].max()  
 
-            # Calculate the span of months
+        
             span_months = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1
 
             return span_months
 
-        # Apply the function to each group and get the span of months
+  
         month_span = grouped_data.apply(calculate_month_span)
 
         print(month_span.describe())
@@ -179,34 +177,32 @@ def moving_avg(std_balance):
     def calculate_ema(data, span):
         return data.ewm(span=span, adjust=False).mean()
 
-        # Calculate SMA and EMA
-    sma_window = 2  # Define SMA window size
-    ema_span = 2    # Define EMA span
+    
+    sma_window = 2  
+    ema_span = 2   
 
-        # Calculate SMA
     std_balance['sma'] = std_balance.groupby(['prism_consumer_id', 'acct_type'])['amount_standardized'].transform(lambda x: calculate_sma(x, sma_window))
-    # Calculate EMA
+
     std_balance['ema'] = std_balance.groupby(['prism_consumer_id', 'acct_type'])['amount_standardized'].transform(lambda x: calculate_ema(x, ema_span))
 
     moving_averages = std_balance[['prism_consumer_id', 'prism_account_id','month','acct_type','sma', 'ema']]
 
     
     def convert_to_month_identifier(df):
-        # Sort the DataFrame by month
+
         df = df.sort_values('month', ascending=False)
 
-        # Create a dictionary to map month dates to month identifiers
+        # dictionary to map month dates to month identifiers
         month_identifier_mapping = {}
         month_count = 1
         for month in df['month'].unique():
             month_identifier_mapping[month] = f'month{month_count}'
             month_count += 1
 
-        # Replace month dates with month identifiers
         df['month'] = df['month'].map(month_identifier_mapping)
         return df
 
-    # Apply conversion function to each user and account type separately
+    # by user and account type conversion
     converted_dfs = []
     for (user_id, acct_type), user_acct_df in moving_averages.groupby(['prism_consumer_id', 'acct_type']):
         converted_df = convert_to_month_identifier(user_acct_df)
@@ -228,29 +224,25 @@ def moving_avg(std_balance):
 
 # Calculate trend in standardized differences in balance
 def balance_diff_std(inflows, outflows):
-    # copy dataframes
     outflows_negate = outflows.copy()
     outflows_negate['amount'] *= -1
-    
-    # Merge inflows and outflows
+
     all_transactions = pd.concat([inflows,outflows_negate])
 
-    # Extract month from date
     all_transactions['month'] = pd.to_datetime(all_transactions['posted_date']).dt.strftime('%Y-%m')
 
-    # Standardize amount
+    # standardize amount
     transactions_by_month = all_transactions.groupby(['prism_consumer_id','acct_type','month'])['amount'].sum().reset_index()
     transactions_by_month['amount_standardized'] = transactions_by_month.groupby(['prism_consumer_id','acct_type'])['amount'].transform(std_amount)
     transactions_by_month.fillna(0, inplace=True)
 
-    # Calculate date delta
+    #we want to regress across time, so we calcualte time delta
     transactions_by_month['date'] = pd.to_datetime(transactions_by_month['month'])
     transactions_by_month['date_delta'] = (transactions_by_month['date'] - transactions_by_month.groupby(
         ['prism_consumer_id', 'acct_type']
         )['date'].transform('min')).dt.days
 
-    # Calculate linear model coefficients of cumulative sum over time for each consumer and account type
-
+    #  find linear model coefficients of cumulative sum over time for each consumer and account type
     coefficients_std = transactions_by_month.groupby(['prism_consumer_id','acct_type']).apply(linear_model).to_frame().reset_index()
     coefficients_std.columns = ['prism_consumer_id','acct_type','coefficient']
     coefficients_std_flat = coefficients_std.pivot_table(index='prism_consumer_id', columns='acct_type', values='coefficient', fill_value=0)
