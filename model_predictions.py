@@ -116,13 +116,13 @@ def train_model(X,y, best_thresh, use_model='xgb'):
     else:
         model = XGBClassifier()
     model.fit(X_train, y_train)
-    X_train.to_csv(f'output/x_features_{use_model}.csv')
+    #X_train.to_csv(f'output/x_features_{use_model}.csv')
 
     #threshold selected from evaluate features function
-    selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
+    selection = SelectFromModel(model, threshold=best_thresh, prefit=True)#.set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
     select_X_train.columns = X_train.columns[selection.get_support()] 
-    select_X_train.to_csv(f'output/x_selected_features_{use_model}.csv')
+    #select_X_train.to_csv(f'output/x_selected_features_{use_model}.csv')
         # train model
     # selection_model = XGBClassifier()
     if use_model == 'svm':
