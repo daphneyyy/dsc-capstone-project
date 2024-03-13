@@ -108,7 +108,6 @@ def train_model(X,y, best_thresh, use_model='xgb'):
     X_new = exclude_columns_with_substrings(X, ['HEALTHCARE_MEDICAL', 'OTHER_BENEFITS', 'CHILD_DEPENDENTS', 'CD'])
 
     X_train, X_test, y_train, y_test = train_test_split(X_new, y, test_size=0.33, random_state=7, stratify=y)
-    # model = XGBClassifier()
     if use_model == 'svm':
         model = SVC(kernel='linear', probability=True)
     elif use_model == 'lr':
@@ -119,12 +118,11 @@ def train_model(X,y, best_thresh, use_model='xgb'):
     #X_train.to_csv(f'output/x_features_{use_model}.csv')
 
     #threshold selected from evaluate features function
-    selection = SelectFromModel(model, threshold=best_thresh, prefit=True)#.set_output(transform = 'pandas')
+    selection = SelectFromModel(model, threshold=best_thresh, prefit=True).set_output(transform = 'pandas')
     select_X_train = selection.transform(X_train)
     select_X_train.columns = X_train.columns[selection.get_support()] 
     #select_X_train.to_csv(f'output/x_selected_features_{use_model}.csv')
         # train model
-    # selection_model = XGBClassifier()
     if use_model == 'svm':
         selection_model = SVC(kernel='linear', probability=True)
     elif use_model == 'lr':
